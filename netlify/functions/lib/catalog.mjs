@@ -6,27 +6,27 @@
 export const CATALOG = {
   mint: {
     title: 'Mint Jams', price: 5000,
-    files: [{ key: 'posters/MINT JAMS V2 - CMYK.jpg', name: 'Mint Jams - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'MINT JAMS V2 - CMYK.jpg', name: 'Mint Jams - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   fallen: {
     title: 'Fallen Angels', price: 5000,
-    files: [{ key: 'posters/FALLEN ANGELS - CMYK.jpg', name: 'Fallen Angels - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'FALLEN ANGELS - CMYK.jpg', name: 'Fallen Angels - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   odisea: {
     title: 'La Odisea', price: 5000,
-    files: [{ key: 'posters/LA ODISEA - CMYK.jpg', name: 'La Odisea - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'LA ODISEA - CMYK.jpg', name: 'La Odisea - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   first: {
     title: 'First Light', price: 5000,
-    files: [{ key: 'posters/FIRST LIGHT - CMYK.jpg', name: 'First Light - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'FIRST LIGHT - CMYK.jpg', name: 'First Light - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   rodrigo: {
     title: 'Rodrigo Bueno', price: 5000,
-    files: [{ key: 'posters/RODRIGO.jpg', name: 'Rodrigo Bueno - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'RODRIGO.jpg', name: 'Rodrigo Bueno - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   bocanada: {
     title: 'Bocanada', price: 5000,
-    files: [{ key: 'posters/BOCANADA - CMYK.jpg', name: 'Bocanada - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'BOCANADA - CMYK.jpg', name: 'Bocanada - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   mellon: {
     title: 'Mellon Collie', price: 5000,
@@ -34,12 +34,12 @@ export const CATALOG = {
   },
   abbey: {
     title: 'Abbey Road', price: 5000,
-    files: [{ key: 'posters/ABBEY ROAD CMYK.jpg', name: 'Abbey Road - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'ABBEY ROAD CMYK.jpg', name: 'Abbey Road - Ceja (A3 CMYK 300dpi).jpg' }],
   },
   fight: {
     title: 'Fight Club Pack', price: 10000,
     // Un solo archivo ZIP con todo el pack adentro.
-    files: [{ key: 'packs/fight-club-pack.zip', name: 'Fight Club Pack - Ceja.zip' }],
+    files: [{ key: 'fight-club-pack.zip', name: 'Fight Club Pack - Ceja.zip' }],
   },
   // Gratis: price 0. Se entrega sin pago desde /api/gratis.
   indio: {
