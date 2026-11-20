@@ -44,6 +44,6 @@ export const CATALOG = {
   // Gratis: price 0. Se entrega sin pago desde /api/gratis.
   indio: {
     title: 'Gracias Indio', price: 0,
-    files: [{ key: 'posters/GRACIAS INDIO V2.jpg', name: 'Gracias Indio - Ceja (A3 CMYK 300dpi).jpg' }],
+    files: [{ key: 'GRACIAS INDIO V2.jpg', name: 'Gracias Indio - Ceja (A3 CMYK 300dpi).jpg' }],
   },
 };
