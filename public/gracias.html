@@ -15,7 +15,8 @@
     <div class="pill">
     <a class="logo" href="/">CEJA<small>マユ</small></a>
     <nav class="nav mono" aria-label="Secciones">
-      <a href="/#posters">Pósters</a>
+      <a href="/#posters">Destacados</a>
+      <a href="/tienda.html">Tienda</a>
       <a href="/#imprimir">Cómo imprimir</a>
       <a href="/#encargos">Encargos</a>
       <a href="/#faq">Preguntas</a>
@@ -43,6 +44,7 @@
       <a href="https://www.instagram.com/ceja.dg" target="_blank" rel="noopener">Instagram</a>
       <a href="https://www.behance.net/cejadg" target="_blank" rel="noopener">Behance</a>
       <a href="http://bento.me/ceja" target="_blank" rel="noopener">Redes</a>
+      <a href="tienda.html">Tienda</a>
     </div>
   </div>
 </footer>
@@ -72,6 +74,7 @@
             el.className = 'btn'; el.href = a.url; el.textContent = 'Descargar ' + a.nombre;
             dl.appendChild(el);
           });
+          try { localStorage.removeItem('ceja-carrito'); } catch (e) {}
           dl.hidden = false; linkBox.hidden = false; back.hidden = false;
         } else if (d.estado === 'pendiente') {
           view('Pago pendiente', 'Estamos esperando la aprobación', 'Mercado Pago todavía no confirmó tu pago. Esta página se actualiza sola apenas se acredite. Podés dejarla abierta o volver más tarde con este mismo link.');

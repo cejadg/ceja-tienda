@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tienda - Ceja Pósters</title>
+<meta name="description" content="Todos los pósters digitales A3 de Ceja, listos para imprimir. Pagás con Mercado Pago y descargás al instante.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@700;900&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div id="top-sentinel" aria-hidden="true"></div>
+<header class="bar">
+  <div class="wrap">
+    <div class="pill">
+    <a class="logo" href="#top">CEJA<small>マユ</small></a>
+    <nav class="nav mono" aria-label="Secciones">
+      <a href="#posters">Destacados</a>
+      <a href="tienda.html">Tienda</a>
+      <a href="#imprimir">Cómo imprimir</a>
+      <a href="#encargos">Encargos</a>
+      <a href="#faq">Preguntas</a>
+      <button type="button" class="cart-btn mono" data-cart-open aria-label="Abrir carrito">Carrito <span class="cart-n" data-cart-count>0</span></button>
+    </nav>
+    </div>
+  </div>
+</header>
+
+
+<main id="top">
+  <section class="tienda">
+    <div class="wrap">
+      <div class="head">
+        <h2>Tienda</h2>
+        <span class="mono" id="count"></span>
+      </div>
+      <p class="promo mono" data-promo></p>
+      <div class="buscar">
+        <label class="mono" for="q">Buscar</label>
+        <input id="q" type="search" placeholder="Banda, película, álbum…" autocomplete="off">
+      </div>
+      <div class="grid" id="lista" style="margin-top:36px">
+      </div>
+      <p class="sin-res" id="none" hidden>No encontramos ese póster. Si lo buscás y no está, pedímelo por Instagram.</p>
+      <div id="extras"></div>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <span class="mono">© Ceja · Diseño gráfico</span>
+    <div class="links mono">
+      <a href="https://www.instagram.com/ceja.dg" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.behance.net/cejadg" target="_blank" rel="noopener">Behance</a>
+      <a href="http://bento.me/ceja" target="_blank" rel="noopener">Redes</a>
+      <a href="tienda.html">Tienda</a>
+    </div>
+  </div>
+</footer>
+
+<dialog id="buy" class="buy" aria-labelledby="buy-title">
+  <form method="dialog"><button class="buy-x" aria-label="Cerrar">✕</button></form>
+  <div class="buy-grid">
+    <img id="buy-img" src="img/mint.jpg" width="900" height="1273" alt="">
+    <div class="buy-info">
+      <p class="mono" id="buy-kind"></p>
+      <h2 id="buy-title"></h2>
+      <p id="buy-desc"></p>
+      <ul class="buy-specs" id="buy-specs"></ul>
+      <p class="buy-price" id="buy-price"></p>
+      <button class="btn" id="buy-go" type="button">Pagar con Mercado Pago</button>
+      <button class="btn ghost" id="buy-add" type="button">Agregar al carrito</button>
+      <p class="buy-note">Pagás en Mercado Pago. Cuando se aprueba el pago volvés a esta página y descargás el archivo. No incluye impresión ni envío.</p>
+      <p class="buy-error" id="buy-error" role="alert" hidden></p>
+    </div>
+  </div>
+</dialog>
+<dialog id="cart" class="buy cart" aria-labelledby="cart-title">
+  <form method="dialog"><button class="buy-x" aria-label="Cerrar">✕</button></form>
+  <div class="cart-in">
+    <h2 id="cart-title">Tu carrito</h2>
+    <p class="cart-empty" id="cart-empty">Todavía no agregaste nada.</p>
+    <ul class="cart-list" id="cart-list"></ul>
+    <p class="cart-nudge mono" id="cart-nudge" hidden></p>
+    <dl class="cart-sum" id="cart-sum" hidden>
+      <div><dt>Subtotal</dt><dd id="cart-sub"></dd></div>
+      <div id="cart-dline"><dt id="cart-dlabel">Descuento</dt><dd id="cart-disc"></dd></div>
+      <div class="tot"><dt>Total</dt><dd id="cart-total"></dd></div>
+    </dl>
+    <button class="btn" id="cart-go" type="button" hidden>Pagar con Mercado Pago</button>
+    <button class="btn ghost" id="cart-more" type="button">Seguir mirando</button>
+    <p class="buy-note" id="cart-note" hidden>Un solo pago por todo. Al aprobarse volvés a esta página y descargás todos los archivos.</p>
+    <p class="buy-error" id="cart-error" role="alert" hidden></p>
+  </div>
+</dialog>
+<p id="aviso" class="aviso" role="status" hidden></p>
+
+<script>
+(function () {
+  var CAT = window.CEJA_CAT = {};
+  var dlg = document.getElementById('buy');
+  var go = document.getElementById('buy-go');
+  var errBox = document.getElementById('buy-error');
+  var aviso = document.getElementById('aviso');
+  var cur = null;
+  function $(id) { return document.getElementById(id); }
+  function fmt(n) { return 'ARS ' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  function showError(m) { errBox.textContent = m; errBox.hidden = false; }
+  function resetGo() { go.disabled = false; go.textContent = 'Pagar con Mercado Pago'; }
+  function toast(m) { aviso.textContent = m; aviso.hidden = false; setTimeout(function () { aviso.hidden = true; }, 7000); }
+
+  function openBuy(id) {
+    var p = CAT[id]; if (!p) return;
+    cur = id; window.CEJA_CUR = id;
+    $('buy-img').src = p.img; $('buy-img').alt = 'Póster ' + p.title;
+    $('buy-kind').textContent = p.kind;
+    $('buy-title').textContent = p.title;
+    $('buy-desc').textContent = p.desc;
+    $('buy-price').textContent = fmt(p.price);
+    var ul = $('buy-specs'); ul.textContent = '';
+    p.specs.forEach(function (s) { var li = document.createElement('li'); li.textContent = s; ul.appendChild(li); });
+    errBox.hidden = true; resetGo();
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+
+  function pay() {
+    var p = CAT[cur]; if (!p) return;
+    errBox.hidden = true; go.disabled = true; go.textContent = 'Abriendo Mercado Pago…';
+    fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: cur, price: p.price }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); })
+      .then(function (x) {
+        if (x.ok && x.d && typeof x.d.url === 'string' && x.d.url.indexOf('https://') === 0) { location.href = x.d.url; return; }
+        resetGo();
+        showError(x.status === 409 ? 'El precio de este póster cambió. Recargá la página para ver el precio actual.' : 'No pudimos abrir Mercado Pago. Probá de nuevo en un momento.');
+      })
+      .catch(function () { resetGo(); showError('No hay conexión. Revisá tu internet y probá de nuevo.'); });
+  }
+
+  function free(id, btn) {
+    if (btn) btn.disabled = true;
+    fetch('/api/gratis', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: id }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (btn) btn.disabled = false;
+        if (x.ok && x.d && typeof x.d.url === 'string' && x.d.url.indexOf('https://') === 0) { location.href = x.d.url; }
+        else toast('No pudimos preparar la descarga. Probá de nuevo en un momento.');
+      })
+      .catch(function () { if (btn) btn.disabled = false; toast('No hay conexión. Revisá tu internet y probá de nuevo.'); });
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-buy]') : null;
+    if (b) { openBuy(b.getAttribute('data-buy')); return; }
+    var f = e.target.closest ? e.target.closest('[data-free]') : null;
+    if (f) free(f.getAttribute('data-free'), f);
+  });
+  go.addEventListener('click', pay);
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+  window.addEventListener('pageshow', resetGo);   // al volver atrás desde Mercado Pago
+
+  if (/[?&]pago=fallido/.test(location.search)) {
+    toast('El pago no se completó. Podés intentar de nuevo cuando quieras.');
+    try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+  }
+})();
+</script>
+<script src="carrito.js"></script>
+<script>
+(function () {
+  var lista = document.getElementById('lista'), extras = document.getElementById('extras');
+  var q = document.getElementById('q'), count = document.getElementById('count'), none = document.getElementById('none');
+  var cards = [], names = [];
+  function norm(s) { return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function fmt(n) { return 'ARS ' + String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt) e.textContent = txt; return e; }
+  function img(p, big) { var i = new Image(); i.src = p.img; i.alt = 'Póster ' + p.title; i.loading = 'lazy'; i.width = big ? 1000 : 900; i.height = big ? 1000 : 1273; return i; }
+  function artBtn(id, p, cls, attr) { var b = el('button', cls); b.type = 'button'; b.setAttribute(attr, id); b.setAttribute('aria-label', p.title); b.appendChild(img(p, p.pack)); return b; }
+  function btn(id, p, label, attr) { var b = el('button', 'btn', label); b.type = 'button'; b.setAttribute(attr, id); return b; }
+  function block(cls, badge, id, p, text, label, attr) {
+    var d = el('div', cls), t = el('div'); d.style.marginTop = '56px';
+    d.appendChild(artBtn(id, p, 'art-btn', attr));
+    t.appendChild(el('span', 'badge mono', badge)); t.appendChild(el('h3', '', p.title)); t.appendChild(el('p', '', text)); t.appendChild(btn(id, p, label, attr));
+    d.appendChild(t); extras.appendChild(d);
+  }
+  function filter() {
+    var v = norm(q.value.trim()), n = 0;
+    cards.forEach(function (c, i) { var ok = !v || names[i].indexOf(v) !== -1; c.hidden = !ok; if (ok) n++; });
+    count.textContent = v ? n + ' de ' + cards.length + ' pósters' : cards.length + ' pósters';
+    none.hidden = n !== 0 || !cards.length;
+  }
+  fetch('catalogo.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (all) {
+    var data = all.productos;
+    Object.keys(data).forEach(function (id) {
+      var p = data[id]; window.CEJA_CAT[id] = p;
+      if (p.pack) { block('pack', 'Pack', id, p, 'Pack completo en un solo pago, ' + fmt(p.price) + '. Se descarga como un único archivo ZIP.', 'Ver el pack', 'data-buy'); return; }
+      if (p.free) { block('free', 'Gratis', id, p, 'Probá cómo llega un archivo de Ceja antes de comprar. Mismo formato A3 a 300 DPI, sin costo.', 'Descargar gratis', 'data-free'); return; }
+      var c = el('article', 'card'), m = el('div', 'meta mono');
+      m.appendChild(el('span', '', 'A3 · CMYK')); m.appendChild(el('span', 'price', fmt(p.price)));
+      c.appendChild(artBtn(id, p, 'art', 'data-buy')); c.appendChild(m); c.appendChild(el('h3', '', p.title)); c.appendChild(btn(id, p, 'Comprar', 'data-buy'));
+      lista.appendChild(c); cards.push(c); names.push(norm(p.title));
+    });
+    filter();
+  }).catch(function () { count.textContent = ''; none.textContent = 'No pudimos cargar la tienda. Recargá la página.'; none.hidden = false; });
+  q.addEventListener('input', filter);
+})();
+</script>
+<script>
+(function () {
+  var bar = document.querySelector('.bar');
+  var sentinel = document.getElementById('top-sentinel');
+  if (!bar) return;
+  function set(on) { bar.classList.toggle('scrolled', on); }
+  function onScroll() {
+    var y = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    if (y > 28) set(true); else if (y < 8) set(false);
+  }
+  if ('IntersectionObserver' in window && sentinel) {
+    // Detecta si el borde superior de la página sigue a la vista. Funciona aunque la página
+    // esté dentro de otra vista que es la que se desplaza.
+    new IntersectionObserver(function (entries) {
+      set(!entries[entries.length - 1].isIntersecting);
+    }, { threshold: 0 }).observe(sentinel);
+  } else {
+    window.addEventListener('scroll', onScroll, { passive: true });
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+})();
+</script>
+</body>
+</html>
