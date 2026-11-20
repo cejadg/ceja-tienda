@@ -135,3 +135,22 @@ Te devuelve el link de descarga para reenviárselo.
 Probado con simulaciones: el cálculo de precios, la creación del cobro, la verificación del pago (aprobado, pendiente, rechazado, reembolsado, monto incompleto), los links falsos o manipulados, la firma de las descargas (verificada contra el ejemplo oficial de AWS) y todo el recorrido en un navegador. Para correrlas: `npm test` (requiere Node 20 o más).
 
 **No probado:** un pago real contra Mercado Pago, ni la descarga desde tu bucket real, porque eso depende de tus cuentas y claves. Por eso el paso 6 es obligatorio antes de abrir la tienda.
+
+
+## Tienda completa (76 productos)
+
+- `tienda.html` es la página aparte con todos los pósters y un buscador. El inicio muestra 8 destacados y un botón a la tienda.
+- **Agregar un póster a la venta (lo hacés vos):**
+  1. Subí el archivo final a R2 con el nombre exacto que figura en `LISTA-DE-ARCHIVOS.md`.
+  2. En GitHub, entrá a la carpeta `public/img` > Add file > Upload files, y subí la vista previa con el nombre de la lista (por ejemplo `almendra.jpg`).
+  3. Netlify hace el deploy solo y el póster aparece en la Tienda. Se puede subir de a muchos.
+- Si borrás la imagen de `public/img`, el póster deja de venderse.
+- El inicio (destacados) lo genera mi herramienta; si querés cambiar cuáles son los 8 destacados, pedímelo.
+
+## Carrito y descuento por cantidad
+
+- Cada póster tiene "Agregar al carrito" (y también "Pagar" para comprar solo ese). El carrito está en la barra superior y se guarda en el navegador del cliente.
+- Un solo pago en Mercado Pago por todo el carrito. En la página de descarga aparece un botón por cada archivo.
+- **Descuentos:** se editan al principio de `netlify/functions/lib/catalog.mjs`, en `DESCUENTOS` (hoy: 2 pósters −10%, 3 −15%, 5 o más −20%). El pack de Fight Club no participa (`SIN_DESCUENTO`). El máximo por compra es `MAX_CARRITO` (12).
+- El precio final lo calcula siempre el servidor. Si alguien manipula la página, el cobro se rechaza.
+- Si un cliente perdió su link de descarga, `admin-link` sigue sirviendo: ahora también acepta compras con carrito (la referencia empieza con `~`).

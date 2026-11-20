@@ -162,3 +162,98 @@ test('admin-link: sin ADMIN_KEY configurada queda deshabilitada', async () => {
   process.env.ADMIN_KEY = guardada;
   assert.equal(r.status, 403);
 });
+
+test('productos sin archivo listo (ready:false) no se pueden comprar ni bajar gratis', async () => {
+  const { CATALOG } = await import('../netlify/functions/lib/catalog.mjs');
+  const noListos = Object.entries(CATALOG).filter(([, p]) => !p.ready);
+  assert.ok(noListos.length >= 60);
+  mockFetch(() => resp({}));
+  for (const [id, p] of noListos.slice(0, 5)) {
+    const r = await checkout(post('/api/checkout', { id, price: p.price }));
+    assert.equal(r.status, 404);
+  }
+  assert.equal((await gratis(post('/api/gratis', { id: noListos[0][0] }))).status, 404);
+  assert.equal(llamadas.length, 0);
+  // y cada producto tiene key única en el bucket
+  const keys = Object.values(CATALOG).flatMap((p) => p.files.map((f) => f.key));
+  assert.equal(new Set(keys).size, keys.length);
+});
+
+// ---------- carrito y descuento por cantidad ----------
+const { armarPedido, idsDeRef, refDeCarrito, pctPara } = await import('../netlify/functions/lib/pricing.mjs');
+
+test('descuento por cantidad: tramos, redondeo y el pack no participa', () => {
+  assert.deepEqual([1, 2, 3, 4, 5, 9].map(pctPara), [0, 10, 15, 15, 20, 20]);
+  let p = armarPedido(['mint']);
+  assert.equal(p.total, 5000); assert.equal(p.pct, 0);
+  p = armarPedido(['mint', 'fallen']);
+  assert.equal(p.total, 9000); assert.equal(p.subtotal, 10000);
+  p = armarPedido(['mint', 'fallen', 'odisea']);
+  assert.equal(p.total, 12750);
+  p = armarPedido(['mint', 'fallen', 'odisea', 'first', 'rodrigo']);
+  assert.equal(p.total, 20000);
+  // el pack se suma a precio completo y no cuenta para el tramo
+  p = armarPedido(['mint', 'fight']);
+  assert.equal(p.pct, 0); assert.equal(p.total, 15000);
+  p = armarPedido(['mint', 'fallen', 'fight']);
+  assert.equal(p.total, 9000 + 10000);
+  // repetidos cuentan una sola vez
+  assert.equal(armarPedido(['mint', 'mint']).total, 5000);
+});
+
+test('pedido: rechaza vacío, desconocidos, gratis, no listos y carritos enormes', () => {
+  assert.equal(armarPedido([]).error, 'vacio');
+  assert.equal(armarPedido('mint').error, 'vacio');
+  assert.equal(armarPedido(['mint', 'nada']).error, 'producto');
+  assert.equal(armarPedido(['mint', 'indio']).error, 'producto');
+  assert.equal(armarPedido(['__proto__']).error, 'producto');
+  assert.equal(armarPedido(['mint', 'almendra']).error, 'producto');          // no está en venta
+  assert.equal(armarPedido(['almendra'], { soloListos: false }).total, 5000);  // pero una entrega ya pagada sí vale
+  assert.equal(armarPedido(Array.from({ length: 13 }, (_, i) => 'x' + i)).error, 'demasiados');
+});
+
+test('referencias: ida y vuelta, formato viejo y largo máximo', () => {
+  const ids = ['mint', 'fallen', 'odisea'];
+  const r = refDeCarrito(ids, '0123456789abcdef01');
+  assert.match(r, /^~[0-9a-f]{18}\.[0-9a-f]{18}$/);
+  assert.deepEqual(idsDeRef(r), ids);
+  assert.deepEqual(idsDeRef('mint.0123456789abcdef01'), ['mint']);
+  assert.equal(idsDeRef('~zzzzzz.0123456789abcdef01'), null);
+  assert.equal(idsDeRef('~aaaaaa.0123456789abcdef01'), null);
+  assert.equal(idsDeRef('nada.0123456789abcdef01'), null);
+  assert.ok(refDeCarrito(Array.from({ length: 12 }, () => 'mint'), '0123456789abcdef01').length < 256);
+});
+
+test('checkout con carrito: cobra el total con descuento, item por item', async () => {
+  mockFetch(() => resp({ id: 'p', init_point: 'https://www.mercadopago.com.ar/x' }, 201));
+  const r = await checkout(post('/api/checkout', { ids: ['mint', 'fallen', 'odisea'], total: 12750 }));
+  assert.equal(r.status, 200);
+  const p = JSON.parse(llamadas[0].opts.body);
+  assert.equal(p.items.length, 3);
+  assert.deepEqual(p.items.map((i) => i.unit_price), [4250, 4250, 4250]);
+  assert.equal(p.items.reduce((a, i) => a + i.unit_price, 0), 12750);
+  assert.match(p.external_reference, /^~[0-9a-f]{18}\.[0-9a-f]{18}$/);
+  assert.deepEqual(idsDeRef(p.external_reference), ['mint', 'fallen', 'odisea']);
+});
+
+test('checkout con carrito: total manipulado, producto no listo o carrito vacío no cobran', async () => {
+  mockFetch(() => { throw new Error('no debería llamar a Mercado Pago'); });
+  const r = await checkout(post('/api/checkout', { ids: ['mint', 'fallen'], total: 1000 }));
+  assert.equal(r.status, 409); assert.equal((await r.json()).price, 9000);
+  assert.equal((await checkout(post('/api/checkout', { ids: ['mint', 'almendra'], total: 10000 }))).status, 404);
+  assert.equal((await checkout(post('/api/checkout', { ids: [], total: 0 }))).status, 404);
+  assert.equal((await checkout(post('/api/checkout', { ids: Array.from({ length: 13 }, (_, i) => 'x' + i), total: 1 }))).status, 400);
+  assert.equal(llamadas.length, 0);
+});
+
+test('entrega de carrito: entrega todos los archivos solo si se pagó el total con descuento', async () => {
+  const rc = refDeCarrito(['mint', 'fallen', 'odisea'], '0123456789abcdef01');
+  mockFetch(() => resp({ results: [{ status: 'approved', transaction_amount: 12750 }] }));
+  const d = await (await entrega(urlEntrega(rc, signRef(rc)))).json();
+  assert.equal(d.estado, 'aprobado');
+  assert.equal(d.archivos.length, 3);
+  assert.deepEqual(d.archivos.map((a) => new URL(a.url).pathname.split('/').pop()), ['mint-jams.jpg', 'fallen-angels.jpg', 'la-odisea.jpg']);
+  // pagó solo lo de un póster: no alcanza
+  mockFetch(() => resp({ results: [{ status: 'approved', transaction_amount: 5000 }] }));
+  assert.equal((await (await entrega(urlEntrega(rc, signRef(rc)))).json()).estado, 'rechazado');
+});

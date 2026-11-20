@@ -1,8 +1,9 @@
 // POST /api/checkout   { id, price }  ->  { url }   (link de pago de Mercado Pago)
-import { CATALOG } from './lib/catalog.mjs';
+import { randomBytes } from 'node:crypto';
+import { armarPedido, refDeCarrito } from './lib/pricing.mjs';
 import { env } from './lib/env.mjs';
 import { json } from './lib/http.mjs';
-import { newRef, signRef } from './lib/token.mjs';
+import { signRef } from './lib/token.mjs';
 
 export default async (req) => {
   if (req.method !== 'POST') return json({ error: 'metodo' }, 405);
@@ -10,26 +11,29 @@ export default async (req) => {
   let body;
   try { body = await req.json(); } catch { return json({ error: 'datos' }, 400); }
 
-  const product = Object.hasOwn(CATALOG, body?.id) ? CATALOG[body.id] : null;
-  if (!product || product.price <= 0) return json({ error: 'producto' }, 404);
+  // Acepta un carrito { ids, total } o un solo producto { id, price }.
+  const ids = Array.isArray(body?.ids) ? body.ids : [body?.id];
+  const visto = Number(body?.total ?? body?.price);
+  const pedido = armarPedido(ids);
+  if (pedido.error) return json({ error: pedido.error }, pedido.error === 'demasiados' ? 400 : 404);
 
-  // Si el precio que vio el cliente no coincide con el del servidor, no se cobra: se avisa.
-  if (Number(body.price) !== product.price) return json({ error: 'precio_cambio', price: product.price }, 409);
+  // Si el total que vio el cliente no coincide con el del servidor, no se cobra: se avisa.
+  if (visto !== pedido.total) return json({ error: 'precio_cambio', price: pedido.total }, 409);
 
   const site = (env('SITE_URL', { optional: true }) || new URL(req.url).origin).replace(/\/+$/, '');
-  const ref = newRef(body.id);
+  const ref = refDeCarrito(pedido.items.map((i) => i.id), randomBytes(9).toString('hex'));
   const t = signRef(ref);
   const volver = `${site}/gracias.html?ref=${encodeURIComponent(ref)}&t=${t}`;
 
   const preferencia = {
-    items: [{
-      id: body.id,
-      title: `${product.title} - Ceja`,
-      description: 'Archivo digital para imprimir (descarga inmediata)',
+    items: pedido.items.map((i) => ({
+      id: i.id,
+      title: `${i.title} - Ceja`,
+      description: pedido.pct && i.unit !== i.price ? `Archivo digital (descuento ${pedido.pct}% por cantidad)` : 'Archivo digital para imprimir (descarga inmediata)',
       quantity: 1,
       currency_id: 'ARS',
-      unit_price: product.price,
-    }],
+      unit_price: i.unit,
+    })),
     back_urls: { success: volver, pending: volver, failure: `${site}/?pago=fallido` },
     auto_return: 'approved',
     external_reference: ref,

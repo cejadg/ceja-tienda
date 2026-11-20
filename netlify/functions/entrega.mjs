@@ -2,11 +2,11 @@
 // Pregunta a Mercado Pago si ese pedido tiene un pago aprobado. Si lo tiene, devuelve
 // links de descarga temporales. La respuesta SIEMPRE se calcula con lo que dice Mercado Pago,
 // nunca con lo que mande el navegador.
-import { CATALOG } from './lib/catalog.mjs';
+import { armarPedido, idsDeRef } from './lib/pricing.mjs';
 import { env } from './lib/env.mjs';
 import { json } from './lib/http.mjs';
 import { linkDeDescarga } from './lib/storage.mjs';
-import { checkToken, productOfRef } from './lib/token.mjs';
+import { checkToken } from './lib/token.mjs';
 
 const PENDIENTES = new Set(['pending', 'in_process', 'in_mediation', 'authorized']);
 
@@ -16,9 +16,10 @@ export default async (req) => {
   const t = q.get('t') || '';
 
   if (!checkToken(ref, t)) return json({ estado: 'invalido' }, 403);
-  const id = productOfRef(ref);
-  const product = Object.hasOwn(CATALOG, id) ? CATALOG[id] : null;
-  if (!product || product.price <= 0) return json({ estado: 'invalido' }, 403);
+  const ids = idsDeRef(ref);
+  const pedido = ids ? armarPedido(ids, { soloListos: false }) : { error: 'ref' };
+  if (pedido.error) return json({ estado: 'invalido' }, 403);
+  const nombre = pedido.items.map((i) => i.title).join(', ');
 
   const url = new URL('https://api.mercadopago.com/v1/payments/search');
   url.searchParams.set('external_reference', ref);
@@ -34,14 +35,14 @@ export default async (req) => {
   const pagos = (await r.json()).results || [];
 
   // Pago aprobado y por el monto completo (un pago aprobado pero reembolsado ya no figura "approved").
-  const aprobado = pagos.find((p) => p.status === 'approved' && Number(p.transaction_amount) >= product.price);
+  const aprobado = pagos.find((p) => p.status === 'approved' && Number(p.transaction_amount) >= pedido.total);
   if (aprobado) {
-    const archivos = product.files.map((f) => ({ nombre: f.name, url: linkDeDescarga(f) }));
-    return json({ estado: 'aprobado', producto: product.title, archivos });
+    const archivos = pedido.items.flatMap((i) => i.files).map((f) => ({ nombre: f.name, url: linkDeDescarga(f) }));
+    return json({ estado: 'aprobado', producto: nombre, archivos });
   }
-  if (pagos.some((p) => PENDIENTES.has(p.status))) return json({ estado: 'pendiente', producto: product.title });
-  if (pagos.length) return json({ estado: 'rechazado', producto: product.title });
-  return json({ estado: 'sin_pago', producto: product.title });
+  if (pagos.some((p) => PENDIENTES.has(p.status))) return json({ estado: 'pendiente', producto: nombre });
+  if (pagos.length) return json({ estado: 'rechazado', producto: nombre });
+  return json({ estado: 'sin_pago', producto: nombre });
 };
 
 export const config = { path: '/api/entrega' };

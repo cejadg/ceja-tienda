@@ -8,7 +8,7 @@ export default async (req) => {
   let body;
   try { body = await req.json(); } catch { return json({ error: 'datos' }, 400); }
   const product = Object.hasOwn(CATALOG, body?.id) ? CATALOG[body.id] : null;
-  if (!product || product.price !== 0) return json({ error: 'producto' }, 404);
+  if (!product || !product.ready || product.price !== 0) return json({ error: 'producto' }, 404);
   return json({ url: linkDeDescarga(product.files[0]) });
 };
 
