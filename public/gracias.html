@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Tu descarga - Ceja</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+JP:wght@700;900&display=swap">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<div id="top-sentinel" aria-hidden="true"></div>
+<header class="bar">
+  <div class="wrap">
+    <div class="pill">
+    <a class="logo" href="/">CEJA<small>マユ</small></a>
+    <nav class="nav mono" aria-label="Secciones">
+      <a href="/#posters">Pósters</a>
+      <a href="/#imprimir">Cómo imprimir</a>
+      <a href="/#encargos">Encargos</a>
+      <a href="/#faq">Preguntas</a>
+    </nav>
+    </div>
+  </div>
+</header>
+
+
+<main class="wrap done" id="top">
+  <p class="tag mono" id="g-tag">Verificando</p>
+  <h1 id="g-title">Estamos mirando tu pago</h1>
+  <p id="g-text">Un momento, estamos confirmando tu pago con Mercado Pago.</p>
+  <div class="dl" id="g-dl" hidden></div>
+  <div class="linkbox" id="g-link" hidden>
+    <p>Guardá esta página en favoritos o copiá el link. Con él podés volver a descargar el archivo cuando quieras.</p>
+    <button class="btn ghost" type="button" id="g-copy">Copiar link de descarga</button>
+  </div>
+  <div class="cta" id="g-back" hidden><a class="btn ghost" href="/#posters">Volver a la tienda</a></div>
+</main>
+<footer>
+  <div class="wrap">
+    <span class="mono">© Ceja · Diseño gráfico</span>
+    <div class="links mono">
+      <a href="https://www.instagram.com/ceja.dg" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.behance.net/cejadg" target="_blank" rel="noopener">Behance</a>
+      <a href="http://bento.me/ceja" target="_blank" rel="noopener">Redes</a>
+    </div>
+  </div>
+</footer>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var ref = q.get('ref') || '', t = q.get('t') || '';
+  var tag = document.getElementById('g-tag'), title = document.getElementById('g-title'), text = document.getElementById('g-text');
+  var dl = document.getElementById('g-dl'), linkBox = document.getElementById('g-link'), back = document.getElementById('g-back');
+  var started = Date.now(), timer = null;
+
+  function view(tg, ti, tx) { tag.textContent = tg; title.textContent = ti; text.textContent = tx; }
+  function again(ms) { clearTimeout(timer); timer = setTimeout(check, ms); }
+
+  function check() {
+    if (!ref || !t) { view('Link incompleto', 'Este link no es válido', 'Abrí el link completo que te dio la página después del pago.'); back.hidden = false; return; }
+    fetch('/api/entrega?ref=' + encodeURIComponent(ref) + '&t=' + encodeURIComponent(t), { cache: 'no-store' })
+      .then(function (r) { return r.json().then(function (d) { return { status: r.status, d: d }; }); })
+      .then(function (x) {
+        var d = x.d || {}, waited = Date.now() - started;
+        if (d.estado === 'aprobado') {
+          view('Pago aprobado', '¡Listo! Tu descarga', (d.producto || 'Tu archivo') + ' está listo. Tocá el botón para bajarlo.');
+          dl.textContent = '';
+          (d.archivos || []).forEach(function (a) {
+            if (typeof a.url !== 'string' || a.url.indexOf('https://') !== 0) return;
+            var el = document.createElement('a');
+            el.className = 'btn'; el.href = a.url; el.textContent = 'Descargar ' + a.nombre;
+            dl.appendChild(el);
+          });
+          dl.hidden = false; linkBox.hidden = false; back.hidden = false;
+        } else if (d.estado === 'pendiente') {
+          view('Pago pendiente', 'Estamos esperando la aprobación', 'Mercado Pago todavía no confirmó tu pago. Esta página se actualiza sola apenas se acredite. Podés dejarla abierta o volver más tarde con este mismo link.');
+          linkBox.hidden = false; again(6000);
+        } else if (d.estado === 'sin_pago') {
+          if (waited < 120000) { view('Verificando', 'Estamos mirando tu pago', 'Todavía no vemos el pago. Puede demorar unos segundos.'); again(5000); }
+          else { view('Sin pago registrado', 'No encontramos un pago', 'Si ya pagaste, esperá unos minutos y recargá esta página. Si sigue igual, escribime por Instagram con el comprobante de Mercado Pago.'); back.hidden = false; }
+        } else if (d.estado === 'rechazado') {
+          view('Pago no aprobado', 'El pago no se aprobó', 'Mercado Pago no aprobó este pago. Podés intentar de nuevo desde la tienda, con el mismo u otro medio de pago.'); back.hidden = false;
+        } else if (x.status === 403 || d.estado === 'invalido') {
+          view('Link no válido', 'Este link no es válido', 'Revisá que hayas copiado el link completo, sin cortar el final.'); back.hidden = false;
+        } else {
+          view('Error', 'No pudimos verificar tu pago', 'Hubo un problema de nuestro lado. Probamos de nuevo en unos segundos.'); again(8000);
+        }
+      })
+      .catch(function () { view('Sin conexión', 'No hay conexión', 'Revisá tu internet. Probamos de nuevo en unos segundos.'); again(8000); });
+  }
+
+  document.getElementById('g-copy').addEventListener('click', function () {
+    var b = this;
+    function ok() { b.textContent = 'Link copiado'; setTimeout(function () { b.textContent = 'Copiar link de descarga'; }, 2500); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(location.href).then(ok, function () { prompt('Copiá este link:', location.href); });
+    else prompt('Copiá este link:', location.href);
+  });
+  check();
+})();
+</script>
+</body>
+</html>
